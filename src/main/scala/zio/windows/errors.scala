@@ -14,8 +14,8 @@ case class NativeWindowsException(errorNumber: Int, msg: String) extends LinuxEx
 
 object NativeWindowsException {
 
-  def apply: NativeLinuxException =
+  def apply: WindowsException =
     fromError(Native.getLastError)
 
-  def fromError(error: Int): NativeLinuxException = new NativeLinuxException(error, s"Error number: $error")
+  def fromError(error: Int): WindowsException = new WindowsException(error, s"Error number: $error")
 }
