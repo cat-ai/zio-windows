@@ -2,10 +2,9 @@ package zio.windows
 
 import com.sun.jna.ptr.IntByReference
 import com.sun.jna.{Platform, Pointer}
-
-import zio.blocking._
+import zio.ZEnv._
 import zio.windows.internal.{HANDLE, OVERLAPPED, SECURITY_ATTRIBUTES}
-import zio.{ZIO, ZManaged}
+import zio.{ZEnv, ZIO, ZManaged}
 
 import java.io.IOException
 
@@ -17,7 +16,7 @@ class ZWindowsIO[K <: Kernel32IO](kernel32: K) {
                     lpSecurityAttributes: SECURITY_ATTRIBUTES,
                     dwCreationDisposition: Int,
                     dwFlagsAndAttributes: Int,
-                    hTemplateFile: Int): ZIO[Blocking, IOException, HANDLE]  =
+                    hTemplateFile: Int): ZIO[ZEnv, IOException, HANDLE]  =
     ZIO.effect {
       kernel32
         .CreateFile(
@@ -34,12 +33,12 @@ class ZWindowsIO[K <: Kernel32IO](kernel32: K) {
   def SetFilePointerZIO(hFile: HANDLE,
                         lDistanceToMove: Int,
                         lpDistanceToMoveHigh: Pointer,
-                        dwMoveMethod: Int): ZIO[Blocking, IOException, Int] =
+                        dwMoveMethod: Int): ZIO[ZEnv, IOException, Int] =
     ZIO.effect {
       kernel32.SetFilePointer(hFile, lDistanceToMove, lpDistanceToMoveHigh, dwMoveMethod)
     }.refineToOrDie[IOException]
 
-  def CloseHandleZIO(hObject: HANDLE): ZIO[Blocking, IOException, Boolean] =
+  def CloseHandleZIO(hObject: HANDLE): ZIO[ZEnv, IOException, Boolean] =
     ZIO.effect(kernel32.CloseHandle(hObject)).refineToOrDie[IOException]
 
   def DeviceIoControlZIO(hDevice: HANDLE,
@@ -49,7 +48,7 @@ class ZWindowsIO[K <: Kernel32IO](kernel32: K) {
                          lpOutBuffer: Pointer,
                          nOutBufferSize: Int,
                          lpBytesReturned: IntByReference,
-                         lpOverlapped: Pointer): ZIO[Blocking, IOException, Boolean] =
+                         lpOverlapped: Pointer): ZIO[ZEnv, IOException, Boolean] =
     ZIO.effect {
       kernel32
         .DeviceIoControl(
@@ -68,7 +67,7 @@ class ZWindowsIO[K <: Kernel32IO](kernel32: K) {
                   lpBuffer: Array[Byte],
                   nNumberOfBytesToRead: Int,
                   lpNumberOfBytesRead: IntByReference,
-                  lpOverlapped: OVERLAPPED): ZIO[Blocking, IOException, Boolean] =
+                  lpOverlapped: OVERLAPPED): ZIO[ZEnv, IOException, Boolean] =
     ZIO.effect {
       kernel32.ReadFile(hFile, lpBuffer, nNumberOfBytesToRead, lpNumberOfBytesRead, lpOverlapped)
     }.refineToOrDie[IOException]
@@ -78,21 +77,21 @@ class ZWindowsIO[K <: Kernel32IO](kernel32: K) {
                    lpBuffer: Array[Byte],
                    nNumberOfBytesToWrite: Int,
                    lpNumberOfBytesWritten: IntByReference,
-                   lpOverlapped: OVERLAPPED): ZIO[Blocking, IOException, Boolean] =
+                   lpOverlapped: OVERLAPPED): ZIO[ZEnv, IOException, Boolean] =
     ZIO.effect {
       kernel32.WriteFile(hFile, lpBuffer, nNumberOfBytesToWrite, lpNumberOfBytesWritten, lpOverlapped)
     }.refineToOrDie[IOException]
 
-  protected def FailZIO: ZIO[Blocking, IOException, IOException] = effectBlockingIO(new IOException("Error"))
+  protected def FailZIO: ZIO[ZEnv, IOException, IOException] = ZIO.effectTotal(new IOException("Error"))
 }
 
 object ZWindowsIO {
 
   type WinIO = Kernel32IO
 
-  def make: ZManaged[Blocking, IOException, ZWindowsIO[WinIO]] =
+  def make: ZManaged[ZEnv, IOException, ZWindowsIO[WinIO]] =
     ZManaged.make(
-      effectBlocking {
+      ZIO.effect {
         new ZWindowsIO[WinIO](Kernel32IO.INSTANCE)
       } mapError(ex =>
         if (!Platform.isWindows)

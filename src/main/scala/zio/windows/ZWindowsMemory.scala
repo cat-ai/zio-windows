@@ -1,9 +1,8 @@
 package zio.windows
 
 import com.sun.jna.{Memory, Platform, Pointer, Native => JnaNative}
-
-import zio.blocking._
-import zio.{ZIO, ZManaged}
+import zio.ZEnv._
+import zio.{ZEnv, ZIO, ZManaged}
 
 import java.io.IOException
 
@@ -20,58 +19,58 @@ class ZWindowsMemory[N <: JnaNative] {
   @native
   private def memset(ptr: Pointer, b: Int, n: NativeSizeT): Unit
 
-  def memcmpZIO(ptr1: Pointer, ptr2: Pointer, n: NativeSizeT): ZIO[Blocking, IOException, Int] =
-    effectBlockingIO(memcmp(ptr1, ptr2, n))
+  def memcmpZIO(ptr1: Pointer, ptr2: Pointer, n: NativeSizeT): ZIO[ZEnv, IOException, Int] =
+    ZIO.effect(memcmp(ptr1, ptr2, n)).refineToOrDie[IOException]
 
-  def memcpyZIO(src: Memory, dest: Pointer): ZIO[Blocking, IOException, Pointer] =
-    effectBlockingIO(memcpy(src, dest, new NativeSizeT(src.size))) *> ZIO.succeedNow(dest)
+  def memcpyZIO(src: Memory, dest: Pointer): ZIO[ZEnv, IOException, Pointer] =
+    (ZIO.effect(memcpy(src, dest, new NativeSizeT(src.size))) *> ZIO.succeedNow(dest)).refineToOrDie[IOException]
 
-  def memsetZIO(ptr: Pointer, b: Int, n: NativeSizeT): ZIO[Blocking, IOException, Pointer] =
-    effectBlockingIO(memset(ptr, b, n)) *> ZIO.succeedNow(ptr)
+  def memsetZIO(ptr: Pointer, b: Int, n: NativeSizeT): ZIO[ZEnv, IOException, Pointer] =
+    (ZIO.effect(memset(ptr, b, n)) *> ZIO.succeedNow(ptr)).refineToOrDie[IOException]
 
-  def memsetZIO(ptr: Memory, b: Int): ZIO[Blocking, IOException, Pointer] =
-    memsetZIO(ptr, b, new NativeSizeT(ptr.size))
+  def memsetZIO(ptr: Memory, b: Int): ZIO[ZEnv, IOException, Pointer] =
+    memsetZIO(ptr, b, new NativeSizeT(ptr.size)).refineToOrDie[IOException]
 
-  def equalZIO(ptr1: Pointer, ptr2: Pointer, n: NativeSizeT): ZIO[Blocking, IOException, Boolean] =
-    memcmpZIO(ptr1, ptr2, n) map(_ == 0)
+  def equalZIO(ptr1: Pointer, ptr2: Pointer, n: NativeSizeT): ZIO[ZEnv, IOException, Boolean] =
+    memcmpZIO(ptr1, ptr2, n).map(_ == 0).refineToOrDie[IOException]
 
-  def equalZIO(ptr1: Pointer, ptr2: Memory): ZIO[Blocking, IOException, Boolean] = equalZIO(ptr1, ptr2, new NativeSizeT(ptr2.size))
+  def equalZIO(ptr1: Pointer, ptr2: Memory): ZIO[ZEnv, IOException, Boolean] = equalZIO(ptr1, ptr2, new NativeSizeT(ptr2.size))
 
-  def equalZIO(ptr1: Memory, ptr2: Pointer): ZIO[Blocking, IOException, Boolean] = equalZIO(ptr1, ptr2, new NativeSizeT(ptr1.size))
+  def equalZIO(ptr1: Memory, ptr2: Pointer): ZIO[ZEnv, IOException, Boolean] = equalZIO(ptr1, ptr2, new NativeSizeT(ptr1.size))
 
-  def equalZIO(ptr1: Memory, ptr2: Memory): ZIO[Blocking, IOException, Boolean] = equalZIO(ptr1, ptr2.asInstanceOf[Pointer])
+  def equalZIO(ptr1: Memory, ptr2: Memory): ZIO[ZEnv, IOException, Boolean] = equalZIO(ptr1, ptr2.asInstanceOf[Pointer])
 
-  def unsignedByteZIO(ptr: Pointer, offset: Long): ZIO[Blocking, IOException, Int] =
-    effectBlockingIO(ptr.getByte(offset)).map(_ & 0x000000ff)
+  def unsignedByteZIO(ptr: Pointer, offset: Long): ZIO[ZEnv, IOException, Int] =
+    ZIO.effect(ptr.getByte(offset)).map(_ & 0x000000ff).refineToOrDie[IOException]
 
-  def setUnsignedByteZIO(ptr: Pointer, offset: Long, b: Int): ZIO[Blocking, IOException, Pointer] =
-    effectBlockingIO(ptr.setByte(offset, b.toByte)) *> ZIO.succeedNow(ptr)
+  def setUnsignedByteZIO(ptr: Pointer, offset: Long, b: Int): ZIO[ZEnv, IOException, Pointer] =
+    (ZIO.effect(ptr.setByte(offset, b.toByte)) *> ZIO.succeedNow(ptr)) .refineToOrDie[IOException]
 
-  def unsignedShortZIO(ptr: Pointer, offset: Long): ZIO[Blocking, IOException, Int] =
-    effectBlockingIO(ptr.getShort(offset)).map(_ & 0x0000ffff)
+  def unsignedShortZIO(ptr: Pointer, offset: Long): ZIO[ZEnv, IOException, Int] =
+    ZIO.effect(ptr.getShort(offset)).map(_ & 0x0000ffff).refineToOrDie[IOException]
 
-  def setUnsignedShortZIO(ptr: Pointer, offset: Long, s: Int): ZIO[Blocking, IOException, Pointer] =
-    effectBlockingIO(ptr.setShort(offset, s.toShort)) *> ZIO.succeedNow(ptr)
+  def setUnsignedShortZIO(ptr: Pointer, offset: Long, s: Int): ZIO[ZEnv, IOException, Pointer] =
+    (ZIO.effect(ptr.setShort(offset, s.toShort)) *> ZIO.succeedNow(ptr)).refineToOrDie[IOException]
 
-  def unsignedIntZIO(ptr: Pointer, offset: Long): ZIO[Blocking, IOException, Long] =
-    effectBlockingIO(ptr.getInt(offset)).map(_ & 0xffffffffL)
+  def unsignedIntZIO(ptr: Pointer, offset: Long): ZIO[ZEnv, IOException, Long] =
+    ZIO.effect(ptr.getInt(offset)).map(_ & 0xffffffffL).refineToOrDie[IOException]
 
-  def setUnsignedIntZIO(ptr: Pointer, offset: Long, i: Long): ZIO[Blocking, IOException, Pointer] =
-    effectBlockingIO(ptr.setInt(offset, i.toInt)) *> ZIO.succeedNow(ptr)
+  def setUnsignedIntZIO(ptr: Pointer, offset: Long, i: Long): ZIO[ZEnv, IOException, Pointer] =
+    (ZIO.effect(ptr.setInt(offset, i.toInt)) *> ZIO.succeedNow(ptr)).refineToOrDie[IOException]
 
-  protected def failZIO: ZIO[Blocking, IOException, IOException] = effectBlockingIO(new IOException("Error"))
+  protected def failZIO: ZIO[ZEnv, IOException, Unit] = ZIO.fail(new IOException("Error"))
 }
 
 object ZWindowsMemory {
 
   type Native = JnaNative
 
-  def make: ZManaged[Blocking, IOException, ZWindowsMemory[Native]] =
+  def make: ZManaged[ZEnv, IOException, ZWindowsMemory[Native]] =
     ZManaged.make(
-      effectBlocking {
-        val zLinuxMemory = new ZWindowsMemory[Native]
-        zLinuxMemory.load
-        zLinuxMemory
+      ZIO.effect {
+        val zWindowsMemory = new ZWindowsMemory[Native]
+        zWindowsMemory.load
+        zWindowsMemory
       } mapError( ex =>
         if (!Platform.isLinux)
           PlatformException("Not WINDOWS")

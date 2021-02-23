@@ -1,7 +1,6 @@
 package zio.windows
 
 import zio._
-import zio.blocking.Blocking
 import zio.duration.durationInt
 import zio.test.Assertion.equalTo
 import zio.test._
@@ -11,8 +10,8 @@ import java.io.IOException
 
 object ZioWindowsTest extends DefaultRunnableSpec {
 
-  val windowsMemory: ZLayer[Blocking, TestFailure[IOException], WindowsMemory] = memory.mapError(TestFailure.fail)
-  val windowsIO:     ZLayer[Blocking, TestFailure[IOException], WindowsIO]     = io.mapError(TestFailure.fail)
+  val windowsMemory: ZLayer[ZEnv, TestFailure[IOException], WindowsMemory] = memory.mapError(TestFailure.fail)
+  val windowsIO:     ZLayer[ZEnv, TestFailure[IOException], WindowsIO]     = io.mapError(TestFailure.fail)
 
   override def spec: Spec[TestEnvironment, TestFailure[Exception], TestSuccess] =
     suite("Common Windows Tests")(
@@ -33,5 +32,5 @@ object ZioWindowsTest extends DefaultRunnableSpec {
         } yield assert(n == newLastError)(equalTo(true))
       }
 
-    ).provideCustomLayerShared(windowsMemory ++ windowsIO ++ Blocking.live) @@ TestAspect.timeout(30.seconds)
+    ).provideCustomLayerShared(windowsMemory ++ windowsIO ++ ZEnv.live) @@ TestAspect.timeout(30.seconds)
 }
