@@ -1,7 +1,7 @@
 import Dependencies._
 
 ThisBuild / scalaVersion := "2.13.4"
-ThisBuild / version      := "0.0.1"
+ThisBuild / version      := "0.0.2"
 ThisBuild / organization := "cat-ai"
 ThisBuild / description  := "Purely functional ZIO interface over Windows via JNA"
 
